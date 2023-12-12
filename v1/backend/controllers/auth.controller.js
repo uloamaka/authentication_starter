@@ -1,4 +1,4 @@
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const hbs = require("handlebars");
@@ -52,28 +52,31 @@ const registerUser = async (req, res, next) => {
   if (userExist) {
     throw new Conflict("Email already exists", EXISTING_USER_EMAIL);
   }
-  const hash = await bcrypt.hash(password, 10);
-  const user = await User.create({
-    username,
-    email,
-    password: hash,
-  });
-
-  const maxAge = 1 * 60 * 60;
-  const token = jwt.sign({ id: user._id, role: user.role }, jwtSecret, {
-    expiresIn: maxAge, // 1hrs in sec
-  });
-  res.cookie("jwt", token, {
-    httpOnly: true,
-    maxAge: maxAge * 1000, // 1hrs in ms
-  });
-  let formattedUser = {
-    username,
-    email,
-    user_id: user._id,
-  };
-  return res.created({
-    message: formattedUser,
+  bcrypt.hash(password, 10, async function (err, hash) {
+    if (err) {
+      throw new Unauthorized("Error hashing password", MALFORMED_TOKEN);
+    }
+    const user = await User.create({
+      username,
+      email,
+      password: hash,
+    });
+    const maxAge = 1 * 60 * 60;
+    const token = jwt.sign({ id: user._id, role: user.role }, jwtSecret, {
+      expiresIn: maxAge, // 1hrs in sec
+    });
+    res.cookie("jwt", token, {
+      httpOnly: true,
+      maxAge: maxAge * 1000, // 1hrs in ms
+    });
+    let formattedUser = {
+      username,
+      email,
+      user_id: user._id,
+    };
+    return res.created({
+      message: formattedUser,
+    });
   });
 };
 
@@ -86,30 +89,29 @@ const loginUser = async (req, res, next) => {
   const validUser = userSchema.parse(req.body);
   const { email, password } = validUser;
   const user = await User.findOne({ email });
-
   if (!user) {
     throw new ResourceNotFound(
       "No record of this account, sign up now.",
       RESOURCE_NOT_FOUND
     );
   }
-  bcrypt.compare(password, user.password, (err, result) => {
-    if (err) {
-      throw new Error("Error comparing passwords");
-    }
-    if (result) {
-      const maxAge = 3 * 60 * 60;
-      const token = jwt.sign({ id: user._id, role: user.role }, jwtSecret, {
-        expiresIn: maxAge, // 3hrs in seconds
-      });
-
-      res.cookie("jwt", token, {
-        httpOnly: true,
-        maxAge: maxAge * 1000,
-      });
-    }
-    return res.ok({ message: "Login successful", user: user._id });
+  result = await bcrypt.compare(password, user.password);
+  if (result === false) {
+    throw new BadRequest(
+      "incorrect email or Password!",
+      INVALID_REQUEST_PARAMETERS
+    );
+  }
+  const maxAge = 3 * 60 * 60;
+  const token = jwt.sign({ id: user._id, role: user.role }, jwtSecret, {
+    expiresIn: maxAge, // 3hrs in seconds
   });
+
+  res.cookie("jwt", token, {
+    httpOnly: true,
+    maxAge: maxAge * 1000,
+  });
+  return res.ok({ message: "Login successful", user: user._id });
 };
 
 const updateUserRole = async (req, res, next) => {
@@ -145,7 +147,6 @@ const deleteUser = async (req, res, next) => {
   return res.noContent();
 };
 
-
 const emailTemplate = fs.readFileSync("./templates/resetPassword.hbs", "utf-8");
 const compiledTemplate = hbs.compile(emailTemplate);
 const forgotPassword = async (req, res, next) => {
@@ -159,7 +160,8 @@ const forgotPassword = async (req, res, next) => {
     expiresIn: "1h",
   });
   let userId = user._id;
-  const resetLink = `${baseUrl}api/v1/auth/reset-password/${userId}/${resetToken}`;
+  // const resetLink = `${baseUrl}api/v1/auth/reset-password/${userId}/${resetToken}`;
+  const resetLink = `http://localhost:3000/api/v1/auth/reset-password/${userId}/${resetToken}`;
   console.log(resetLink);
 
   const emailContent = compiledTemplate({

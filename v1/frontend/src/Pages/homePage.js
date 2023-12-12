@@ -11,6 +11,7 @@ import {
 } from "@chakra-ui/react";
 import Signup from "../components/Authentication/Signup";
 import Login from "../components/Authentication/Login";
+import Forget_password from "../components/Authentication/forgetPassword";
 const homePage = () => {
   return (
     <Container maxW="xl" centerContent>

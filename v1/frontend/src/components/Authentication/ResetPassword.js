@@ -6,18 +6,17 @@ import {
   InputGroup,
   InputRightElement,
   Button,
-  Link as ChakraLink,
-  LinkProps,
 } from "@chakra-ui/react";
 import React, { useState } from "react";
-import { Link as ReactRouterLink } from "react-router-dom";
 import { useToast } from "@chakra-ui/react";
 import axios from "axios";
+import { useParams } from "react-router-dom";
 
-const Login = () => {
+const ResetPassword = () => {
+  const { userId, resetToken } = useParams();
   const [show, setShow] = useState(false);
-  const [email, setEmail] = useState();
-  const [password, setPassword] = useState();
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setloading] = useState(false);
   const toast = useToast();
 
@@ -25,7 +24,7 @@ const Login = () => {
 
   const submitHandler = async () => {
     setloading(true);
-    if (!email || !password) {
+    if (!newPassword || !confirmPassword) {
       toast({
         title: "Please Fill all the Fields",
         status: "warning",
@@ -41,14 +40,20 @@ const Login = () => {
         headers: {
           "Content-type": "application/json",
         },
+        };
+        console.log(resetToken);
+      const requestData = {
+        newPassword,
+        confirmPassword,
       };
+
       const { data } = await axios.post(
-        "/api/v1/auth/login",
-        { email, password },
+        `/api/v1/auth/reset-password/${userId}/${resetToken}`,
+        requestData,
         config
       );
       toast({
-        title: "Login successful",
+        title: "Password reset successful",
         status: "success",
         duration: 5000,
         isClosable: true,
@@ -71,20 +76,13 @@ const Login = () => {
 
   return (
     <VStack>
-      <FormControl id="email" isRequired>
-        <FormLabel>Email</FormLabel>
-        <Input
-          placeholder="Enter a valid email address"
-          onChange={({ target }) => setEmail(target.value)}
-        ></Input>
-      </FormControl>
-      <FormControl id="password" isRequired>
+      <FormControl id="newPassword" isRequired>
         <FormLabel>Password</FormLabel>
         <InputGroup>
           <Input
             type={show ? "text" : "password"}
             placeholder="Enter your password"
-            onChange={({ target }) => setPassword(target.value)}
+            onChange={({ target }) => setNewPassword(target.value)}
           ></Input>
           <InputRightElement width={"4.5rem"}>
             <Button h="1.75rem" size={"sm"} onClick={handleClick}>
@@ -93,7 +91,21 @@ const Login = () => {
           </InputRightElement>
         </InputGroup>
       </FormControl>
-
+      <FormControl id="confirmPassword" isRequired>
+        <FormLabel>Confirm Password</FormLabel>
+        <InputGroup>
+          <Input
+            type={show ? "text" : "password"}
+            placeholder="Enter your password again!"
+            onChange={({ target }) => setConfirmPassword(target.value)}
+          ></Input>
+          <InputRightElement width={"4.5rem"}>
+            <Button h="1.75rem" size={"sm"} onClick={handleClick}>
+              {show ? "Hide" : "show"}
+            </Button>
+          </InputRightElement>
+        </InputGroup>
+      </FormControl>
       <Button
         colorScheme="blue"
         width={"100%"}
@@ -102,14 +114,10 @@ const Login = () => {
         onClick={submitHandler}
         isLoading={loading}
       >
-        Login
+        Reset Password
       </Button>
-
-      <ChakraLink as={ReactRouterLink} to="/forget_password">
-        forget_password
-      </ChakraLink>
     </VStack>
   );
 };
 
-export default Login;
+export default ResetPassword;
