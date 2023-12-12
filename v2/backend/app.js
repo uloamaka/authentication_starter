@@ -45,7 +45,7 @@ app.use(cors(corsOptions));
 
 
 
-app.use("/api/v1", V1_Router);
+app.use("/api/v2", V1_Router);
 
 //google cb
 // app.use("/auth", auth);

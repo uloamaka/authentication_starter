@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const hbs = require("handlebars");
 const fs = require("fs");
+const { passport } = require("../utils/GoogleOauth2");
 require("dotenv").config();
 const { z } = require("zod");
 const {
@@ -25,9 +26,11 @@ const {
   RESOURCE_NOT_FOUND,
   INVALID_REQUEST_PARAMETERS,
   EXISTING_USER_EMAIL,
+  EMAIL_ALREADY_VERIFIED,
   MALFORMED_TOKEN,
   EXPIRED_TOKEN,
 } = require("../errors/httpErrorCodes");
+const validator = require("../validators/formRegister.validator");
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -144,7 +147,52 @@ const deleteUser = async (req, res, next) => {
   }
   return res.noContent();
 };
+/*  Google AUTH  */
+const authenticateGoogle = (strategyOptions) => {
+  return passport.authenticate("google", strategyOptions);
+};
+const handleGoogleCallback = async (req, res, next) => {
+  passport.authenticate("google", async (err, user, info) => {
+    if (err) {
+      throw new ServerError(
+        "Authentication failed. Please try again",
+        THIRD_PARTY_API_FAILURE
+      );
+    }
+    if (!user) {
+      throw new ResourceNotFound(
+        "User profile does not exist",
+        RESOURCE_NOT_FOUND
+      );
+    }
+    // console.log(info);
+    req.login(user, async (loginErr) => {
+      if (loginErr) {
+        return next(loginErr);
+      }
+      const responseObject = {
+        id: user.id,
+        email: user.emails[0].value,
+        username: user.displayName,
+      };
 
+      const signedUser = new User({
+        email: responseObject.email,
+        password: "",
+        role: "basic",
+        userName: responseObject.username,
+        authType: "google",
+      });
+
+      const savedUser = await signedUser.save();
+      console.log(savedUser);
+      return res.created({
+        message: "Authentication successful.",
+        user: savedUser,
+      });
+    });
+  })(req, res, next);
+};
 
 const emailTemplate = fs.readFileSync("./templates/resetPassword.hbs", "utf-8");
 const compiledTemplate = hbs.compile(emailTemplate);
@@ -235,4 +283,6 @@ module.exports = {
   deleteUser,
   forgotPassword,
   resetPassword,
+  authenticateGoogle,
+  handleGoogleCallback,
 };

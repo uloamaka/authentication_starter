@@ -15,5 +15,13 @@ router.post("/forget-password", registerUser.forgotPassword);
 
 router.post("/reset-password/:userId/:resetToken", registerUser.resetPassword);
 
+//Gooogle auth
+router.get(
+  "/google",
+  registerUser.authenticateGoogle({
+    scope: ["profile", "email"],
+  })
+);
+router.get("/google/callback", registerUser.handleGoogleCallback);
 
 module.exports = router;
